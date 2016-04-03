@@ -6,6 +6,7 @@ import android.provider.MediaStore;
 import android.util.Log;
 
 
+import com.coremedia.iso.PropertyBoxParserImpl;
 import com.coremedia.iso.boxes.Container;
 import com.googlecode.mp4parser.authoring.Movie;
 import com.googlecode.mp4parser.authoring.Track;
@@ -28,7 +29,7 @@ public class RedCandleAndroidAPI extends UnityPlayerActivity {
     public String ShareVideo(String path) {
        File file = new File(path);
 
-       /* ContentValues values = new ContentValues(3);
+        ContentValues values = new ContentValues(3);
         values.put(MediaStore.Video.Media.TITLE, "My video title");
         values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
         values.put(MediaStore.Video.Media.DATA, file.getAbsolutePath());
@@ -37,7 +38,7 @@ public class RedCandleAndroidAPI extends UnityPlayerActivity {
         intent.putExtra(Intent.EXTRA_SUBJECT, "Title");
         intent.setType("video/mp4");
         intent.putExtra(Intent.EXTRA_STREAM, data);
-        startActivity(Intent.createChooser(intent, "Upload video via:"));*/
+        startActivity(Intent.createChooser(intent, "Upload video via:"));
 
         Log.d("Unity", "ShareVideo: success");
 
@@ -46,7 +47,7 @@ public class RedCandleAndroidAPI extends UnityPlayerActivity {
 
     public String MergeVideo(String video,String audio,String target)
     {
-
+        PropertyBoxParserImpl._activity = this;
 
         Log.d("Unity", "Try Merge: " + video + ":" + audio + ":" + target);
 
@@ -87,40 +88,42 @@ public class RedCandleAndroidAPI extends UnityPlayerActivity {
     }
 
     public boolean mux(String videoFile, String audioFile, String outputFile) {
+
         Movie video;
         try {
             video = new MovieCreator().build(videoFile);
-
-
+            Log.d("ATTENTION","On a fini le try du montage de video");
         } catch (RuntimeException e) {
             e.printStackTrace();
-
             return false;
         } catch (IOException e) {
             e.printStackTrace();
-
             return false;
         }
 
         Movie audio;
         try {
-
             audio = new MovieCreator().build(audioFile);
-
+            Log.d("ATTENTION","On a fini le try de montage de audio");
         } catch (IOException e) {
             e.printStackTrace();
-
             return false;
         } catch (NullPointerException e) {
             e.printStackTrace();
-
             return false;
         }
 
+        Log.d("TAILLE",String.valueOf(video.getTracks().size()));
         Track audioTrack = audio.getTracks().get(0);
-        video.addTrack(audioTrack);
 
-        Container out = new DefaultMp4Builder().build(video);
+        Track videoAudioTrack = video.getTracks().get(1);
+        Movie result = new Movie();
+
+        result.addTrack(audioTrack);
+        result.addTrack(videoAudioTrack);
+
+
+        Container out = new DefaultMp4Builder().build(result);
 
         FileOutputStream fos;
         try {
@@ -131,21 +134,19 @@ public class RedCandleAndroidAPI extends UnityPlayerActivity {
         }
         BufferedWritableFileByteChannel byteBufferByteChannel = new BufferedWritableFileByteChannel(fos);
         try {
-
             out.writeContainer(byteBufferByteChannel);
             byteBufferByteChannel.close();
-            Log.e("Audio Video", "11");
             fos.close();
         } catch (IOException e) {
             e.printStackTrace();
             return false;
         }
+        Log.d("ATTENTION","On a finis la conversion");
         return true;
     }
 
     private static class BufferedWritableFileByteChannel implements WritableByteChannel {
-        //    private static final int BUFFER_CAPACITY = 1000000;
-        private static final int BUFFER_CAPACITY = 10000000;
+        private static final int BUFFER_CAPACITY = 1000000;
 
         private boolean isOpen = true;
         private final OutputStream outputStream;
@@ -155,7 +156,6 @@ public class RedCandleAndroidAPI extends UnityPlayerActivity {
         private BufferedWritableFileByteChannel(OutputStream outputStream) {
             this.outputStream = outputStream;
             this.byteBuffer = ByteBuffer.wrap(rawBuffer);
-            Log.e("Audio Video", "13");
         }
 
         @Override
@@ -163,12 +163,10 @@ public class RedCandleAndroidAPI extends UnityPlayerActivity {
             int inputBytes = inputBuffer.remaining();
 
             if (inputBytes > byteBuffer.remaining()) {
-                Log.e("Size ok ", "song size is ok");
                 dumpToFile();
                 byteBuffer.clear();
 
                 if (inputBytes > byteBuffer.remaining()) {
-                    Log.e("Size ok ", "song size is not okssss ok");
                     throw new BufferOverflowException();
                 }
             }
@@ -188,7 +186,6 @@ public class RedCandleAndroidAPI extends UnityPlayerActivity {
             dumpToFile();
             isOpen = false;
         }
-
         private void dumpToFile() {
             try {
                 outputStream.write(rawBuffer, 0, byteBuffer.position());
